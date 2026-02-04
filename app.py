@@ -113,51 +113,6 @@ TEMPLATES = {
         },
     ],
 
-    "Eesti keel": [
-        # Sõnavara / pilt / lause
-        {
-            "title": "Sõnavara: sõna → ese",
-            "teacher_phrase": "Ütleme koos ja näitame: ‘See on …’",
-            "task": "Leia, mis sobib sõnaga: **{word}**. (Näita pildil/klassis.)",
-            "harder": "Ütle lause sõnaga **{word}**.",
-        },
-        # Kes teeb? Mida teeb?
-        {
-            "title": "Kes teeb? Mida teeb?",
-            "teacher_phrase": "Küsimused: ‘Kes?’ ja ‘Mida teeb?’",
-            "task": "Tee lause: **{noun} {verb}.** Ütle see valjusti.",
-            "harder": "Lisa omadussõna: **{adj} {noun} {verb}.**",
-        },
-        # Õige lause
-        {
-            "title": "Õige lause",
-            "teacher_phrase": "Otsime, mis kõlab õigesti eesti keeles.",
-            "task": "Vali õige: 1) {noun} {verb}.  2) {noun} {verb}e.",
-            "harder": "Asenda {noun} uue sõnaga ja ütle uuesti.",
-        },
-        # Täienda lauset
-        {
-            "title": "Täienda lauset",
-            "teacher_phrase": "Vali sobiv sõna ja loe täislause.",
-            "task": "Täienda: **{noun} on {adj}.** (Ütle täislausega.)",
-            "harder": "Ütle sama mõte teise sõnaga (synonüüm / lihtsam sõna).",
-        },
-        # Leia vale sõna
-        {
-            "title": "Leia vale sõna",
-            "teacher_phrase": "Kolm sõna on ühest grupist, üks ei sobi.",
-            "task": "Leia vale sõna: {word}, {word2}, {noun}, {verb}.",
-            "harder": "Selgita ühe lausega, miks see ei sobi.",
-        },
-        # Küsimus–vastus
-        {
-            "title": "Küsimus–vastus (kiire)",
-            "teacher_phrase": "Vastame täislausega: ‘Ma arvan, et …’",
-            "task": "Küsimus: **Kas {noun} {verb}?** Vastus: **Jah/ei, …**",
-            "harder": "Lisa põhjus: **sest …**",
-        },
-    ],
-
     "Loogika": [
         {
             "title": "Järjend",
@@ -223,15 +178,18 @@ def pick_vocab(grade: int):
     adj = random.choice(pool["adjs"])
     word = random.choice(pool["nouns"] + pool["adjs"] + pool["verbs"])
     word2 = random.choice(pool["nouns"] + pool["adjs"] + pool["verbs"])
-    # ensure word2 differs
+
     for _ in range(5):
         if word2 != word:
             break
         word2 = random.choice(pool["nouns"] + pool["adjs"] + pool["verbs"])
+
     return noun, verb, adj, word, word2
 
 def generate_block(grade: int, subject: str, level: str, minutes: int) -> dict:
-    tpl = random.choice(TEMPLATES[subject])
+    templates_src = TEMPLATES
+    tpl = random.choice(templates_src[subject])
+
 
     # numbers tuned by grade
     if grade == 1:
@@ -263,6 +221,10 @@ def generate_block(grade: int, subject: str, level: str, minutes: int) -> dict:
     teacher = tpl["teacher_phrase"]
     task = tpl["task"].format(**data)
     harder = tpl["harder"].format(**data)
+    # L2: fix teacher question based on subject kind (Kes vs Mis)
+    if subject == "Eesti keel" and lang_mode == "Eesti keel (L2 – lihtsustatud)":
+        if teacher.strip() == "Küsimus: Kes teeb?" and subject_kind == "object":
+            teacher = "Küsimus: Mis teeb?"
 
     # For "level", adjust: if basic, keep "harder" optional; if harder, emphasize it.
     if level == "Baas":
@@ -312,7 +274,7 @@ st.caption("Matemaatika • Eesti keel • Loogika • Emotsionaalne soojendus �
 with st.sidebar:
     st.header("Seaded")
     grade = st.selectbox("Klass", [1, 2, 3, 4], index=1)
-    subject = st.selectbox("Aine", ["Matemaatika", "Eesti keel", "Loogika", "Emotsionaalne soojendus"], index=1)
+    subject = st.selectbox("Aine", ["Matemaatika", "Loogika", "Emotsionaalne soojendus"], index=0)
     level = st.radio("Tase", ["Baas", "Raskem"], horizontal=True, index=0)
     minutes = st.select_slider("Kestus", options=[3, 5, 7], value=5)
     seed = st.text_input("Seed (valikuline)", value="", help="Kui sisestad numbri, saad korratavaid tulemusi.")
@@ -345,7 +307,16 @@ if (block["grade"], block["subject"], block["minutes"]) != (grade, subject, minu
     block = st.session_state.block
 
 st.subheader(f"🧩 {block['title']}")
-st.write(f"**Klass:** {block['grade']}  |  **Aine:** {block['subject']}  |  **Aeg:** ~{block['minutes']} min")
+subject_label = block["subject"]
+if block["subject"] == "Eesti keel" and lang_mode == "Eesti keel (L2 – lihtsustatud)":
+    subject_label = "Eesti keel (L2)"
+
+st.write(
+    f"**Klass:** {block['grade']}  |  "
+    f"**Aine:** {subject_label}  |  "
+    f"**Aeg:** ~{block['minutes']} min"
+)
+
 
 st.markdown("**Õpetajale (fraas):**")
 st.info(block["teacher"])
